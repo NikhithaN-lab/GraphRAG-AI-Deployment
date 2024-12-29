@@ -1,92 +1,58 @@
-import streamlit as st
-from sentence_transformers import SentenceTransformer
-from py2neo import Graph
 import numpy as np
+import streamlit as st
+from py2neo import Graph
+from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch  # For running the model on CPU/GPU
 
-# Neo4j connection setup
-NEO4J_URI = "neo4j+s://32511ae0.databases.neo4j.io"
-NEO4J_USERNAME = "neo4j"
-NEO4J_PASSWORD = "HYKino3fm8r87dIde7v4FUZl0WPNHwCsXjzS6dlM4xI"
-graph = Graph(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
+# Initialize the Sentence Transformer model
+model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 
-# SentenceTransformer model initialization for embedding queries
-model = SentenceTransformer('all-MiniLM-L6-v2')
+# Initialize the Neo4j Graph connection
+graph = Graph("bolt://localhost:7687", auth=("neo4j", "password"))
 
-# GPT-2 model initialization (via Hugging Face transformers)
-gpt2_model_name = "gpt2"  # Example: GPT-2 model
-tokenizer = AutoTokenizer.from_pretrained(gpt2_model_name)
-gpt2_model = AutoModelForCausalLM.from_pretrained(gpt2_model_name)
-
-# Streamlit UI setup
-st.title('Airbnb Chatbot for Albany, NY')
-st.write("Ask questions about Albany Airbnb listings and reviews:")
-
-# User input
-query = st.text_area("Enter your question:")
-
-# Similarity Search Function
+# Function to find similar reviews
 def find_similar_reviews(query, top_n=5):
     query_embedding = model.encode(query)
     
-    # Query Neo4j for reviews with embeddings, ensuring we only retrieve reviews with embeddings
-    query_result = graph.run("MATCH (r:Review) WHERE EXISTS(r.embedding) RETURN r.id, r.embedding LIMIT 1000")
+    # Query Neo4j for reviews with embeddings (embedding property must be present)
+    query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding LIMIT 1000")
     similarities = []
     
+    # Loop through each review and calculate similarity
     for record in query_result:
-        # Ensure we only process reviews that have embeddings
         if 'r.embedding' in record:
-            review_embedding = np.array(record['r.embedding'])
-            similarity = cosine_similarity([query_embedding], [review_embedding])
-            similarities.append((record['r.id'], similarity[0][0]))
+            try:
+                # Ensure that the 'embedding' is a valid numpy array
+                review_embedding = np.array(record['r.embedding'])
+                if review_embedding.size > 0:
+                    similarity = cosine_similarity([query_embedding], [review_embedding])
+                    similarities.append((record['r.id'], similarity[0][0]))
+            except Exception as e:
+                # Handle any errors in processing the embedding (e.g., invalid data)
+                st.write(f"Error processing review ID {record['r.id']}: {e}")
     
+    # Debugging: Print out how many reviews were retrieved with valid embeddings
+    st.write(f"Retrieved {len(similarities)} reviews with embeddings.")
+    
+    # Sort reviews based on similarity and return the top N
     similarities.sort(key=lambda x: x[1], reverse=True)
     return similarities[:top_n]
 
-# GPT-2 Model Response Generation
-def generate_response_with_gpt2(query, similar_reviews, max_length=1024):
-    # Combine the similar reviews into a context for the GPT-2 model
-    context = "\n".join([f"Review ID: {review_id}, Similarity: {similarity:.4f}" for review_id, similarity in similar_reviews])
-    prompt = f"Given the following reviews and context, answer the user's question:\n\n{context}\n\nQuestion: {query}\nAnswer:"
-    
-    # Debug: Show the prompt being generated
-    st.write(f"Generated Prompt: {prompt[:500]}...")  # Show a preview of the prompt (first 500 characters)
-    
-    # Tokenize the prompt with proper truncation and padding
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, padding='max_length', max_length=max_length)
+# Streamlit UI setup
+st.title("Similar Reviews Finder")
 
-    # Debug: Check the input tokens
-    st.write(f"Input tokens: {inputs['input_ids']}")
+# User input for the query
+query = st.text_input("Enter a review to find similar ones:")
 
-    # Generate the response using GPT-2 model
-    with torch.no_grad():
-        outputs = gpt2_model.generate(inputs['input_ids'], max_length=150, num_beams=5, early_stopping=True)
-    
-    # Decode the response
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return response.strip()
-
-# Process the user query
-if st.button('Search Similar Reviews'):
+# Button to trigger similarity search
+if st.button('Find Similar Reviews'):
     if query:
-        # Debug: Show that the query is being processed
-        st.write(f"Processing query: {query}")
-
-        # Retrieve similar reviews based on the query
-        similar_reviews = find_similar_reviews(query)
-
-        # Generate a response using GPT-2 model based on similar reviews
-        response = generate_response_with_gpt2(query, similar_reviews)
-        
-        # Display the generated response
-        st.write("### Answer:")
-        st.write(response)
-
-        # Display the top similar reviews
-        st.write("### Top Similar Reviews:")
-        for review_id, similarity in similar_reviews:
-            st.write(f"Review ID: {review_id}, Similarity: {similarity:.4f}")
+        with st.spinner('Searching for similar reviews...'):
+            similar_reviews = find_similar_reviews(query)
+            if similar_reviews:
+                for idx, (review_id, score) in enumerate(similar_reviews, start=1):
+                    st.write(f"{idx}. Review ID: {review_id} | Similarity: {score:.4f}")
+            else:
+                st.write("No similar reviews found.")
     else:
-        st.write("Please enter a query to search.")
+        st.write("Please enter a query to search for similar reviews.")
