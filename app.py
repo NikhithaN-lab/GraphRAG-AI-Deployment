@@ -86,8 +86,10 @@ if user_query:
     if similar_reviews:
         st.write("### Most Similar Reviews:")
         for i, review in enumerate(similar_reviews):
-            # Displaying only review_id and text as requested
-            st.markdown(f"**{i+1}. Review ID:** {review[0]}")
-            st.markdown(f"**Review Text:** {review[1]}")
+            # Format Review ID to show as an integer (whole number)
+            formatted_review_id = int(review[0])  # Convert to integer to remove decimals
+            # Display only Review ID and Review Text directly
+            st.markdown(f"**{i+1}. Review ID:** {formatted_review_id}")
+            st.markdown(f"{review[1]}")
     else:
         st.write("No similar reviews found. Try refining your query.")
