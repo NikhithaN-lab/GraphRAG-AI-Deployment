@@ -1,9 +1,12 @@
+pip install streamlit sentence-transformers py2neo numpy scikit-learn transformers torch
+streamlit run your_file_name.py
 import streamlit as st
 from sentence_transformers import SentenceTransformer
 from py2neo import Graph
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-import openai  # For response generation (Fine-tuning)
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch  # For running the model on CPU/GPU
 
 # Neo4j connection setup
 NEO4J_URI = "neo4j+s://32511ae0.databases.neo4j.io"
@@ -11,11 +14,13 @@ NEO4J_USERNAME = "neo4j"
 NEO4J_PASSWORD = "HYKino3fm8r87dIde7v4FUZl0WPNHwCsXjzS6dlM4xI"
 graph = Graph(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
 
-# SentenceTransformer model initialization
+# SentenceTransformer model initialization for embedding queries
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# OpenAI API setup (for LLM fine-tuning)
-openai.api_key = 'your-openai-api-key'  # Replace with your OpenAI API key
+# Llama model initialization (via Hugging Face transformers)
+llama_model_name = "meta-llama/Llama-2-7b-chat-hf"  # Example: Llama-2 model
+tokenizer = AutoTokenizer.from_pretrained(llama_model_name)
+llama_model = AutoModelForCausalLM.from_pretrained(llama_model_name)
 
 # Streamlit UI setup
 st.title('Airbnb Chatbot for Albany, NY')
@@ -40,24 +45,22 @@ def find_similar_reviews(query, top_n=5):
     similarities.sort(key=lambda x: x[1], reverse=True)
     return similarities[:top_n]
 
-# Fine-tuning & Response Generation
-def generate_response(query, similar_reviews):
-    # Combine the similar reviews into a context for the LLM
+# Llama Model Response Generation
+def generate_response_with_llama(query, similar_reviews):
+    # Combine the similar reviews into a context for the Llama model
     context = "\n".join([f"Review ID: {review_id}, Similarity: {similarity:.4f}" for review_id, similarity in similar_reviews])
     prompt = f"Given the following reviews and context, answer the user's question:\n\n{context}\n\nQuestion: {query}\nAnswer:"
     
-    # Call OpenAI GPT (or another LLM) for response generation using the new Chat API
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",  # You can replace with another model like gpt-4 if available
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=150,
-        temperature=0.7
-    )
+    # Tokenize the prompt
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, padding=True, max_length=1024)
     
-    return response['choices'][0]['message']['content'].strip()
+    # Generate the response using Llama model
+    with torch.no_grad():
+        outputs = llama_model.generate(inputs['input_ids'], max_length=150, num_beams=5, early_stopping=True)
+    
+    # Decode the response
+    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return response.strip()
 
 # Process the user query
 if st.button('Search Similar Reviews'):
@@ -65,8 +68,8 @@ if st.button('Search Similar Reviews'):
         # Retrieve similar reviews based on the query
         similar_reviews = find_similar_reviews(query)
 
-        # Generate a response using the fine-tuned LLM based on similar reviews
-        response = generate_response(query, similar_reviews)
+        # Generate a response using Llama model based on similar reviews
+        response = generate_response_with_llama(query, similar_reviews)
         
         # Display the generated response
         st.write("### Answer:")
