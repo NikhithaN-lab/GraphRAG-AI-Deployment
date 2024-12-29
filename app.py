@@ -29,7 +29,7 @@ def find_similar_reviews(query, top_n=5):
 
     # Query Neo4j for reviews with embeddings
     try:
-        query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding LIMIT 1000")
+        query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding, r.review_text LIMIT 1000")
         results = list(query_result)
         st.write(f"Query Result: {results[:5]}")  # Debugging: Check first 5 results
     except Exception as e:
@@ -44,7 +44,7 @@ def find_similar_reviews(query, top_n=5):
 
     # Check if the results contain embeddings and process them
     for record in results:
-        if 'r.embedding' in record:
+        if 'r.embedding' in record and 'r.review_text' in record:
             try:
                 # Ensure the embedding is in the correct numeric format
                 review_embedding = np.array(eval(record['r.embedding']))  # Convert string to list if necessary
@@ -52,7 +52,7 @@ def find_similar_reviews(query, top_n=5):
 
                 # Compute the cosine similarity between the query and the review embedding
                 similarity = cosine_similarity([query_embedding], [review_embedding])
-                similarities.append((record['r.id'], similarity[0][0]))
+                similarities.append((record['r.id'], record['r.review_text'], similarity[0][0]))
 
                 # Debugging: Print the similarity score for each review
                 st.write(f"Similarity with review {record['r.id']}: {similarity[0][0]}")
@@ -64,7 +64,7 @@ def find_similar_reviews(query, top_n=5):
     st.write(f"Retrieved {len(similarities)} reviews with embeddings.")  # Debugging: Check number of reviews processed
 
     # Sort the results by similarity score
-    similarities.sort(key=lambda x: x[1], reverse=True)
+    similarities.sort(key=lambda x: x[2], reverse=True)
 
     # Return the top N similar reviews
     return similarities[:top_n]
@@ -79,6 +79,7 @@ if query:
     similar_reviews = find_similar_reviews(query)
     if similar_reviews:
         for review in similar_reviews:
-            st.write(f"Review ID: {review[0]} - Similarity Score: {review[1]}")
+            st.write(f"Review ID: {review[0]} - Similarity Score: {review[2]}")
+            st.write(f"Review Text: {review[1]}")  # Display review text
     else:
         st.write("No similar reviews found.")
