@@ -26,29 +26,18 @@ query = st.text_area("Enter your question:")
 
 # Similarity Search Function
 def find_similar_reviews(query, top_n=5):
-    # Get the embedding for the query
     query_embedding = model.encode(query)
-
-    # Retrieve all review embeddings from Neo4j
-    query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding LIMIT 1000")
     
-    # List to store similarity scores
+    # Query Neo4j for reviews with embeddings
+    query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding LIMIT 1000")
     similarities = []
     
     for record in query_result:
         review_embedding = np.array(record['r.embedding'])
-        
-        # Skip reviews with missing embeddings (NaN)
-        if np.isnan(review_embedding).any():
-            continue
-        
-        # Calculate similarity
         similarity = cosine_similarity([query_embedding], [review_embedding])
         similarities.append((record['r.id'], similarity[0][0]))
-
-    # Sort by similarity score
-    similarities.sort(key=lambda x: x[1], reverse=True)
     
+    similarities.sort(key=lambda x: x[1], reverse=True)
     return similarities[:top_n]
 
 # Fine-tuning & Response Generation
@@ -57,14 +46,18 @@ def generate_response(query, similar_reviews):
     context = "\n".join([f"Review ID: {review_id}, Similarity: {similarity:.4f}" for review_id, similarity in similar_reviews])
     prompt = f"Given the following reviews and context, answer the user's question:\n\n{context}\n\nQuestion: {query}\nAnswer:"
     
-    # Call OpenAI GPT (or another LLM) for response generation
-    response = openai.Completion.create(
-        engine="text-davinci-003",  # You can replace with a more suitable engine
-        prompt=prompt,
+    # Call OpenAI GPT (or another LLM) for response generation using the new Chat API
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",  # You can replace with another model like gpt-4 if available
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ],
         max_tokens=150,
         temperature=0.7
     )
-    return response.choices[0].text.strip()
+    
+    return response['choices'][0]['message']['content'].strip()
 
 # Process the user query
 if st.button('Search Similar Reviews'):
@@ -73,18 +66,15 @@ if st.button('Search Similar Reviews'):
         similar_reviews = find_similar_reviews(query)
 
         # Generate a response using the fine-tuned LLM based on similar reviews
-        if similar_reviews:
-            response = generate_response(query, similar_reviews)
-            
-            # Display the generated response
-            st.write("### Answer:")
-            st.write(response)
+        response = generate_response(query, similar_reviews)
+        
+        # Display the generated response
+        st.write("### Answer:")
+        st.write(response)
 
-            # Display the top similar reviews
-            st.write("### Top Similar Reviews:")
-            for review_id, similarity in similar_reviews:
-                st.write(f"Review ID: {review_id}, Similarity: {similarity:.4f}")
-        else:
-            st.write("No similar reviews found for the given query.")
+        # Display the top similar reviews
+        st.write("### Top Similar Reviews:")
+        for review_id, similarity in similar_reviews:
+            st.write(f"Review ID: {review_id}, Similarity: {similarity:.4f}")
     else:
         st.write("Please enter a query to search.")
