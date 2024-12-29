@@ -49,8 +49,8 @@ def generate_response_with_gpt2(query, similar_reviews):
     context = "\n".join([f"Review ID: {review_id}, Similarity: {similarity:.4f}" for review_id, similarity in similar_reviews])
     prompt = f"Given the following reviews and context, answer the user's question:\n\n{context}\n\nQuestion: {query}\nAnswer:"
     
-    # Tokenize the prompt with padding and truncation
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, padding="longest", max_length=1024)
+    # Tokenize the prompt with proper truncation and padding
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, padding=True, max_length=1024)
 
     # Generate the response using GPT-2 model
     with torch.no_grad():
