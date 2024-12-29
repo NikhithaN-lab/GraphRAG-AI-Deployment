@@ -1,5 +1,3 @@
-pip install streamlit sentence-transformers py2neo numpy scikit-learn transformers torch
-streamlit run your_file_name.py
 import streamlit as st
 from sentence_transformers import SentenceTransformer
 from py2neo import Graph
