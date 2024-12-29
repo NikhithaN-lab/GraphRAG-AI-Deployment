@@ -1,6 +1,10 @@
 # Ignore .env file containing sensitive data
 .env
 
+git rm --cached .env
+git commit -m "Remove .env from git history"
+git push
+
 # Ignore Python cache files
 __pycache__/
 *.pyc
