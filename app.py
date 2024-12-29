@@ -22,6 +22,7 @@ def find_similar_reviews(query, top_n=5):
     # Encode the query using the SentenceTransformer model
     try:
         query_embedding = model.encode(query)
+        st.write("Query embedding generated successfully.")
     except Exception as e:
         st.error(f"Error generating query embedding: {e}")
         return []
@@ -35,6 +36,7 @@ def find_similar_reviews(query, top_n=5):
             LIMIT 1000
         """)
         results = list(query_result)
+        st.write(f"Retrieved {len(results)} reviews with embeddings.")  # Debugging: Display count
     except Exception as e:
         st.error(f"Error querying Neo4j: {e}")
         return []
@@ -48,11 +50,16 @@ def find_similar_reviews(query, top_n=5):
     # Process the results and calculate similarity scores
     for record in results:
         try:
-            review_embedding = np.array(eval(record['embedding']))  # Convert embedding string to array
+            # Convert embedding from string to array
+            review_embedding = np.array(eval(record['embedding']))
+            st.write(f"Processing review ID {record['review_id']}...")  # Debugging: Current review
+
+            # Compute cosine similarity
             similarity = cosine_similarity([query_embedding], [review_embedding])
+            st.write(f"Similarity with review ID {record['review_id']}: {similarity[0][0]}")  # Debugging: Similarity score
             similarities.append((record['review_id'], record['text'], similarity[0][0]))
         except Exception as e:
-            st.warning(f"Error processing review {record['review_id']}: {e}")
+            st.warning(f"Error processing review ID {record['review_id']}: {e}")
             continue
 
     # Sort by similarity score in descending order
