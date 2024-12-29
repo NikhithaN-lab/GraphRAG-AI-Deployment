@@ -50,9 +50,9 @@ def find_similar_reviews(query, top_n=5):
     similarities = []
     for record in results:
         try:
-            # Debugging: Show raw embedding and results
-            st.write(f"Embedding Example: {record['embedding']}")
-            st.write(f"Raw Query Results: {results[:2]}")  # Debugging: Display first 2 records for inspection
+            # Remove the part where embeddings are printed out
+            # st.write(f"Embedding Example: {record['embedding']}")  # Removed this line
+            # st.write(f"Raw Query Results: {results[:2]}")  # Removed this line
 
             # Ensure embedding is properly converted (from JSON-style or Python string to array)
             embedding_str = record['embedding']
