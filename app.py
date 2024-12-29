@@ -15,10 +15,10 @@ graph = Graph(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
 # SentenceTransformer model initialization for embedding queries
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Llama model initialization (via Hugging Face transformers)
-llama_model_name = "meta-llama/Llama-2-7b-chat-hf"  # Example: Llama-2 model
-tokenizer = AutoTokenizer.from_pretrained(llama_model_name)
-llama_model = AutoModelForCausalLM.from_pretrained(llama_model_name)
+# GPT-2 model initialization (via Hugging Face transformers)
+gpt2_model_name = "gpt2"  # Example: GPT-2 model
+tokenizer = AutoTokenizer.from_pretrained(gpt2_model_name)
+gpt2_model = AutoModelForCausalLM.from_pretrained(gpt2_model_name)
 
 # Streamlit UI setup
 st.title('Airbnb Chatbot for Albany, NY')
@@ -43,18 +43,18 @@ def find_similar_reviews(query, top_n=5):
     similarities.sort(key=lambda x: x[1], reverse=True)
     return similarities[:top_n]
 
-# Llama Model Response Generation
-def generate_response_with_llama(query, similar_reviews):
-    # Combine the similar reviews into a context for the Llama model
+# GPT-2 Model Response Generation
+def generate_response_with_gpt2(query, similar_reviews):
+    # Combine the similar reviews into a context for the GPT-2 model
     context = "\n".join([f"Review ID: {review_id}, Similarity: {similarity:.4f}" for review_id, similarity in similar_reviews])
     prompt = f"Given the following reviews and context, answer the user's question:\n\n{context}\n\nQuestion: {query}\nAnswer:"
     
     # Tokenize the prompt
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, padding=True, max_length=1024)
     
-    # Generate the response using Llama model
+    # Generate the response using GPT-2 model
     with torch.no_grad():
-        outputs = llama_model.generate(inputs['input_ids'], max_length=150, num_beams=5, early_stopping=True)
+        outputs = gpt2_model.generate(inputs['input_ids'], max_length=150, num_beams=5, early_stopping=True)
     
     # Decode the response
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
@@ -66,8 +66,8 @@ if st.button('Search Similar Reviews'):
         # Retrieve similar reviews based on the query
         similar_reviews = find_similar_reviews(query)
 
-        # Generate a response using Llama model based on similar reviews
-        response = generate_response_with_llama(query, similar_reviews)
+        # Generate a response using GPT-2 model based on similar reviews
+        response = generate_response_with_gpt2(query, similar_reviews)
         
         # Display the generated response
         st.write("### Answer:")
