@@ -50,12 +50,21 @@ def find_similar_reviews(query, top_n=5):
     similarities = []
     for record in results:
         try:
-            # Ensure embedding is properly converted (from JSON-style or Python string to array)
-            embedding_str = record['embedding']
-            try:
-                review_embedding = np.array(json.loads(embedding_str))  # If stored as JSON string
-            except json.JSONDecodeError:
-                review_embedding = np.array(eval(embedding_str))  # If stored as Python-style string
+            # Check if embedding is already a list or needs to be parsed
+            embedding_data = record['embedding']
+            if isinstance(embedding_data, str):
+                # If embedding is stored as a string, try parsing it
+                try:
+                    review_embedding = np.array(json.loads(embedding_data))  # If stored as JSON string
+                except json.JSONDecodeError:
+                    review_embedding = np.array(eval(embedding_data))  # If stored as Python-style string
+            elif isinstance(embedding_data, list):
+                # If embedding is already a list, just use it as is
+                review_embedding = np.array(embedding_data)
+            else:
+                # Handle unexpected cases where embedding is not a list or string
+                st.warning(f"Unexpected embedding format for review ID {record['review_id']}")
+                continue
 
             # Compute cosine similarity
             similarity = cosine_similarity([query_embedding], [review_embedding])
