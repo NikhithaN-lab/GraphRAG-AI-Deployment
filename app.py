@@ -18,12 +18,9 @@ model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Function to find similar reviews based on a query
 def find_similar_reviews(query, top_n=5):
-    st.write("Processing your query...")  # Debugging step
-    
     # Generate query embedding
     try:
         query_embedding = model.encode(query)
-        st.write("Query embedding generated successfully.")
     except Exception as e:
         st.error(f"Error generating query embedding: {e}")
         return []
@@ -37,7 +34,6 @@ def find_similar_reviews(query, top_n=5):
             LIMIT 1000
         """)
         results = list(query_result)
-        st.write(f"Retrieved {len(results)} reviews with embeddings.")  # Debugging step to show count of results
     except Exception as e:
         st.error(f"Error querying Neo4j: {e}")
         return []
@@ -91,21 +87,7 @@ if user_query:
         st.write("### Most Similar Reviews:")
         for i, review in enumerate(similar_reviews):
             # Displaying only review_id and text as requested
-            st.write(f"**{i+1}. Review ID:** {review[0]}")
-            st.write(f"**Review Text:** {review[1]}")
+            st.markdown(f"**{i+1}. Review ID:** {review[0]}")
+            st.markdown(f"**Review Text:** {review[1]}")
     else:
         st.write("No similar reviews found. Try refining your query.")
-
-# Debugging: Add additional Neo4j inspection code if necessary
-# If results aren't returned correctly, you can inspect the raw embeddings in Neo4j like this:
-st.write("Debugging raw data from Neo4j...")
-try:
-    raw_data = graph.run("""
-        MATCH (r:Review)
-        WHERE r.embedding IS NOT NULL
-        RETURN r.id, r.embedding
-        LIMIT 5
-    """)
-    st.write(list(raw_data))  # Display raw data for inspection
-except Exception as e:
-    st.error(f"Error querying Neo4j for raw data: {e}")
