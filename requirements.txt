@@ -1,5 +1,7 @@
 streamlit
 sentence-transformers
 py2neo
-pandas
+openai
 scikit-learn
+numpy
+
