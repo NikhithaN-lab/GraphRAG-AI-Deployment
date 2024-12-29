@@ -17,56 +17,66 @@ model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Function to find similar reviews based on a query
 def find_similar_reviews(query, top_n=5):
+    st.write("Processing your query...")  # Debugging: Confirm function call
+    
     # Encode the query using the SentenceTransformer model
-    query_embedding = model.encode(query)
+    try:
+        query_embedding = model.encode(query)
+    except Exception as e:
+        st.error(f"Error generating query embedding: {e}")
+        return []
 
-    # Query Neo4j for reviews with embeddings
-    query_result = graph.run(
-        """
-        MATCH (r:Review)
-        WHERE r.embedding IS NOT NULL AND r.review_text IS NOT NULL
-        RETURN r.id AS id, r.embedding AS embedding, r.review_text AS text
-        LIMIT 1000
-        """
-    )
-    results = list(query_result)
+    # Query Neo4j for reviews with embeddings only
+    try:
+        query_result = graph.run("""
+            MATCH (r:Review)
+            WHERE r.embedding IS NOT NULL AND r.review_text IS NOT NULL
+            RETURN r.id AS review_id, r.embedding AS embedding, r.review_text AS text
+            LIMIT 1000
+        """)
+        results = list(query_result)
+    except Exception as e:
+        st.error(f"Error querying Neo4j: {e}")
+        return []
 
     if not results:
-        return []  # Return an empty list if no results found
+        st.warning("No reviews found with embeddings.")
+        return []
 
     similarities = []
 
-    # Calculate similarities
+    # Process the results and calculate similarity scores
     for record in results:
         try:
-            review_embedding = np.array(eval(record['embedding']))  # Convert string to list
+            review_embedding = np.array(eval(record['embedding']))  # Convert embedding string to array
             similarity = cosine_similarity([query_embedding], [review_embedding])
-            similarities.append((record['id'], record['text'], similarity[0][0]))
-        except Exception:
-            continue  # Skip if there's an error processing a record
+            similarities.append((record['review_id'], record['text'], similarity[0][0]))
+        except Exception as e:
+            st.warning(f"Error processing review {record['review_id']}: {e}")
+            continue
 
-    # Sort results by similarity score in descending order
+    # Sort by similarity score in descending order
     similarities.sort(key=lambda x: x[2], reverse=True)
 
-    # Return the top N results
+    # Return the top N similar reviews
     return similarities[:top_n]
 
-# Streamlit user interface
-st.title("Airbnb Review Similarity Search")
-query = st.text_area("Enter a review or query to find similar reviews:")
+# Chatbot Interface
+st.title("Airbnb Review Chatbot")
 
-# If a query is entered, find similar reviews
-if st.button("Find Similar Reviews"):
-    if query.strip():
-        similar_reviews = find_similar_reviews(query)
-        if similar_reviews:
-            st.write("Top similar reviews:")
-            for review_id, review_text, similarity_score in similar_reviews:
-                st.write(f"**Review ID:** {review_id}")
-                st.write(f"**Similarity Score:** {similarity_score:.2f}")
-                st.write(f"**Review Text:** {review_text}")
-                st.write("---")
-        else:
-            st.write("No similar reviews found. Try refining your query.")
+# User input: conversational query
+user_query = st.text_input("Ask a question or enter a review description:")
+
+if user_query:
+    st.write("Searching for similar reviews...")
+    similar_reviews = find_similar_reviews(user_query, top_n=5)
+
+    if similar_reviews:
+        st.write("Here are the most similar reviews:")
+        for i, review in enumerate(similar_reviews):
+            st.write(f"### Similar Review {i + 1}")
+            st.write(f"**Review ID:** {review[0]}")
+            st.write(f"**Similarity Score:** {review[2]:.4f}")
+            st.write(f"**Review Text:** {review[1]}")
     else:
-        st.write("Please enter a valid review or query.")
+        st.write("No similar reviews found. Try refining your query.")
