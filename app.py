@@ -37,7 +37,7 @@ def find_similar_reviews(query, top_n=5):
             LIMIT 1000
         """)
         results = list(query_result)
-        st.write(f"Retrieved {len(results)} reviews with embeddings.")
+        st.write(f"Retrieved {len(results)} reviews with embeddings.")  # Debugging step to show count of results
     except Exception as e:
         st.error(f"Error querying Neo4j: {e}")
         return []
@@ -81,8 +81,8 @@ if user_query:
     if similar_reviews:
         st.write("### Most Similar Reviews:")
         for i, review in enumerate(similar_reviews):
+            # Displaying only review_id and text as requested
             st.write(f"**{i+1}. Review ID:** {review[0]}")
-            st.write(f"**Similarity Score:** {review[2]:.4f}")
             st.write(f"**Review Text:** {review[1]}")
     else:
         st.write("No similar reviews found. Try refining your query.")
