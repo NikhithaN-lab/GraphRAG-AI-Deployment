@@ -1,49 +1,44 @@
-import streamlit as st
-from py2neo import Graph
-from sentence_transformers import SentenceTransformer
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+import streamlit as st
 
-# Neo4j connection details
-NEO4J_URI = 'neo4j+s://32511ae0.databases.neo4j.io'
-NEO4J_USERNAME = 'neo4j'
-NEO4J_PASSWORD = 'HYKino3fm8r87dIde7v4FUZl0WPNHwCsXjzS6dlM4xI'
-
-# Initialize the Neo4j graph
-graph = Graph(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
-
-# Load the pre-trained SentenceTransformer model
-model = SentenceTransformer('all-MiniLM-L6-v2')
-
+# Define the find_similar_reviews function
 def find_similar_reviews(query, top_n=5):
-    # Encode the query using the SentenceTransformer model
+    # Encode the query into an embedding
     query_embedding = model.encode(query)
 
     # Query Neo4j for reviews with embeddings
     query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding LIMIT 1000")
     
+    # Debugging: Print out the raw query results to see what is being returned
+    results = list(query_result)
+    st.write("Query Result:", results)
+
     similarities = []
 
-    # Loop through query result and compute similarity
-    for record in query_result:
+    # Check if the results contain embeddings and process them
+    for record in results:
         if 'r.embedding' in record:
-            review_embedding = np.array(record['r.embedding'])
+            # Ensure the embedding is in the correct numeric format
+            try:
+                # If the embedding is a string representation of a list, convert it to a list
+                review_embedding = np.array(eval(record['r.embedding']))  # Convert string to list if necessary
+            except Exception as e:
+                st.write(f"Error processing embedding for review {record['r.id']}: {e}")
+                continue
+            
+            # Compute the cosine similarity between the query and the review embedding
             similarity = cosine_similarity([query_embedding], [review_embedding])
             similarities.append((record['r.id'], similarity[0][0]))
 
-    # Debugging: Display the number of reviews retrieved
+            # Debugging: Print the similarity score for each review
+            st.write(f"Similarity with review {record['r.id']}: {similarity[0][0]}")
+
+    # Debugging: Print the number of reviews with embeddings
     st.write(f"Retrieved {len(similarities)} reviews with embeddings.")
 
-    # Sort the similarities and return top N
+    # Sort the results by similarity score
     similarities.sort(key=lambda x: x[1], reverse=True)
+
+    # Return the top N similar reviews
     return similarities[:top_n]
-
-# Streamlit user interface for input query
-st.title("Airbnb Review Similarity Search")
-query = st.text_input("Enter a review or query to find similar reviews:")
-
-# If a query is entered, find similar reviews
-if query:
-    similar_reviews = find_similar_reviews(query)
-    for review in similar_reviews:
-        st.write(f"Review ID: {review[0]} - Similarity Score: {review[1]}")
