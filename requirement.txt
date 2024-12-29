@@ -1,0 +1,4 @@
+sentence-transformers
+py2neo
+pandas
+streamlit
