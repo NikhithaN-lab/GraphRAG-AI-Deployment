@@ -17,69 +17,56 @@ model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Function to find similar reviews based on a query
 def find_similar_reviews(query, top_n=5):
-    st.write("Starting to find similar reviews...")  # Debugging: Check if the function is called
-    
     # Encode the query using the SentenceTransformer model
-    try:
-        query_embedding = model.encode(query)
-        st.write("Query embedding generated.")  # Debugging: Check if query embedding is generated
-    except Exception as e:
-        st.write(f"Error generating query embedding: {e}")
-        return []
+    query_embedding = model.encode(query)
 
     # Query Neo4j for reviews with embeddings
-    try:
-        query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding, r.review_text LIMIT 1000")
-        results = list(query_result)
-        st.write(f"Query Result: {results[:5]}")  # Debugging: Check first 5 results
-    except Exception as e:
-        st.write(f"Error querying Neo4j: {e}")
-        return []
+    query_result = graph.run(
+        """
+        MATCH (r:Review)
+        WHERE r.embedding IS NOT NULL AND r.review_text IS NOT NULL
+        RETURN r.id AS id, r.embedding AS embedding, r.review_text AS text
+        LIMIT 1000
+        """
+    )
+    results = list(query_result)
 
     if not results:
-        st.write("No reviews found with embeddings.")  # Debugging: Check if no results are returned
-        return []
+        return []  # Return an empty list if no results found
 
     similarities = []
 
-    # Check if the results contain embeddings and process them
+    # Calculate similarities
     for record in results:
-        if 'r.embedding' in record and 'r.review_text' in record:
-            try:
-                # Ensure the embedding is in the correct numeric format
-                review_embedding = np.array(eval(record['r.embedding']))  # Convert string to list if necessary
-                st.write(f"Processing review {record['r.id']}, embedding: {review_embedding[:5]}...")  # Debugging: Check the first few values of the embedding
+        try:
+            review_embedding = np.array(eval(record['embedding']))  # Convert string to list
+            similarity = cosine_similarity([query_embedding], [review_embedding])
+            similarities.append((record['id'], record['text'], similarity[0][0]))
+        except Exception:
+            continue  # Skip if there's an error processing a record
 
-                # Compute the cosine similarity between the query and the review embedding
-                similarity = cosine_similarity([query_embedding], [review_embedding])
-                similarities.append((record['r.id'], record['r.review_text'], similarity[0][0]))
-
-                # Debugging: Print the similarity score for each review
-                st.write(f"Similarity with review {record['r.id']}: {similarity[0][0]}")
-
-            except Exception as e:
-                st.write(f"Error processing embedding for review {record['r.id']}: {e}")
-                continue
-
-    st.write(f"Retrieved {len(similarities)} reviews with embeddings.")  # Debugging: Check number of reviews processed
-
-    # Sort the results by similarity score
+    # Sort results by similarity score in descending order
     similarities.sort(key=lambda x: x[2], reverse=True)
 
-    # Return the top N similar reviews
+    # Return the top N results
     return similarities[:top_n]
 
-# Streamlit user interface for input query
+# Streamlit user interface
 st.title("Airbnb Review Similarity Search")
-query = st.text_input("Enter a review or query to find similar reviews:")
+query = st.text_area("Enter a review or query to find similar reviews:")
 
 # If a query is entered, find similar reviews
-if query:
-    st.write("Finding similar reviews for the query...")  # Debugging: Confirm the query is received
-    similar_reviews = find_similar_reviews(query)
-    if similar_reviews:
-        for review in similar_reviews:
-            st.write(f"Review ID: {review[0]} - Similarity Score: {review[2]}")
-            st.write(f"Review Text: {review[1]}")  # Display review text
+if st.button("Find Similar Reviews"):
+    if query.strip():
+        similar_reviews = find_similar_reviews(query)
+        if similar_reviews:
+            st.write("Top similar reviews:")
+            for review_id, review_text, similarity_score in similar_reviews:
+                st.write(f"**Review ID:** {review_id}")
+                st.write(f"**Similarity Score:** {similarity_score:.2f}")
+                st.write(f"**Review Text:** {review_text}")
+                st.write("---")
+        else:
+            st.write("No similar reviews found. Try refining your query.")
     else:
-        st.write("No similar reviews found.")
+        st.write("Please enter a valid review or query.")
