@@ -28,11 +28,11 @@ st.write("Ask questions about Albany Airbnb listings and reviews:")
 query = st.text_area("Enter your question:")
 
 # Similarity Search Function
-def find_similar_reviews(query, top_n=5):
+def find_similar_reviews(query, top_n=1):
     query_embedding = model.encode(query)
 
     # Query Neo4j for reviews with embeddings ONLY
-    query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding LIMIT 1000")
+    query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding LIMIT 1000") 
     similarities = []
 
     for record in query_result:
@@ -44,13 +44,18 @@ def find_similar_reviews(query, top_n=5):
     return similarities[:top_n]
 
 # GPT-2 Model Response Generation
-def generate_response_with_gpt2(query, similar_reviews):
+def generate_response_with_gpt2(query, similar_reviews, max_context_length=256):
     # Combine the similar reviews into a context for the GPT-2 model
     context = "\n".join([f"Review ID: {review_id}, Similarity: {similarity:.4f}" for review_id, similarity in similar_reviews])
+
+    # Trim the context if it exceeds the maximum length
+    if len(context) > max_context_length:
+        context = context[:max_context_length] + "..."  # Add ellipsis to indicate truncation
+
     prompt = f"Given the following reviews and context, answer the user's question:\n\n{context}\n\nQuestion: {query}\nAnswer:"
 
     # Truncate and pad the prompt
-    max_length = 1024  # Adjust as needed
+    max_length = 2000 # Adjust as needed
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, padding='max_length', max_length=max_length)
 
     with torch.no_grad():
