@@ -3,7 +3,7 @@ from py2neo import Graph
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-import json  # Added for debugging JSON formatting if necessary
+import json
 
 # Neo4j connection details
 NEO4J_URI = 'neo4j+s://32511ae0.databases.neo4j.io'
@@ -37,7 +37,7 @@ def find_similar_reviews(query, top_n=5):
             LIMIT 1000
         """)
         results = list(query_result)
-        st.write(f"Retrieved {len(results)} reviews with embeddings.")  # Debugging step to show count of results
+        st.write(f"Retrieved {len(results)} reviews with embeddings.")
     except Exception as e:
         st.error(f"Error querying Neo4j: {e}")
         return []
@@ -50,10 +50,6 @@ def find_similar_reviews(query, top_n=5):
     similarities = []
     for record in results:
         try:
-            # Remove the part where embeddings are printed out
-            # st.write(f"Embedding Example: {record['embedding']}")  # Removed this line
-            # st.write(f"Raw Query Results: {results[:2]}")  # Removed this line
-
             # Ensure embedding is properly converted (from JSON-style or Python string to array)
             embedding_str = record['embedding']
             try:
