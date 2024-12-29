@@ -4,7 +4,7 @@ from py2neo import Graph
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from transformers import AutoTokenizer, AutoModelForCausalLM
-import torch
+import torch  # For running the model on CPU/GPU
 
 # Neo4j connection setup
 NEO4J_URI = "neo4j+s://32511ae0.databases.neo4j.io"
@@ -28,39 +28,42 @@ st.write("Ask questions about Albany Airbnb listings and reviews:")
 query = st.text_area("Enter your question:")
 
 # Similarity Search Function
-def find_similar_reviews(query, top_n=1):
+def find_similar_reviews(query, top_n=5):
     query_embedding = model.encode(query)
-
-    # Query Neo4j for reviews with embeddings ONLY
-    query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding LIMIT 1000") 
+    
+    # Query Neo4j for reviews with embeddings, ensuring we only retrieve reviews with embeddings
+    query_result = graph.run("MATCH (r:Review) WHERE EXISTS(r.embedding) RETURN r.id, r.embedding LIMIT 1000")
     similarities = []
-
+    
     for record in query_result:
-        review_embedding = np.array(record['r.embedding'])
-        similarity = cosine_similarity([query_embedding], [review_embedding])
-        similarities.append((record['r.id'], similarity[0][0]))
-
+        # Ensure we only process reviews that have embeddings
+        if 'r.embedding' in record:
+            review_embedding = np.array(record['r.embedding'])
+            similarity = cosine_similarity([query_embedding], [review_embedding])
+            similarities.append((record['r.id'], similarity[0][0]))
+    
     similarities.sort(key=lambda x: x[1], reverse=True)
     return similarities[:top_n]
 
 # GPT-2 Model Response Generation
-def generate_response_with_gpt2(query, similar_reviews, max_context_length=256):
+def generate_response_with_gpt2(query, similar_reviews, max_length=1024):
     # Combine the similar reviews into a context for the GPT-2 model
     context = "\n".join([f"Review ID: {review_id}, Similarity: {similarity:.4f}" for review_id, similarity in similar_reviews])
-
-    # Trim the context if it exceeds the maximum length
-    if len(context) > max_context_length:
-        context = context[:max_context_length] + "..."  # Add ellipsis to indicate truncation
-
     prompt = f"Given the following reviews and context, answer the user's question:\n\n{context}\n\nQuestion: {query}\nAnswer:"
-
-    # Truncate and pad the prompt
-    max_length = 2000 # Adjust as needed
+    
+    # Debug: Show the prompt being generated
+    st.write(f"Generated Prompt: {prompt[:500]}...")  # Show a preview of the prompt (first 500 characters)
+    
+    # Tokenize the prompt with proper truncation and padding
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, padding='max_length', max_length=max_length)
 
+    # Debug: Check the input tokens
+    st.write(f"Input tokens: {inputs['input_ids']}")
+
+    # Generate the response using GPT-2 model
     with torch.no_grad():
         outputs = gpt2_model.generate(inputs['input_ids'], max_length=150, num_beams=5, early_stopping=True)
-
+    
     # Decode the response
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
     return response.strip()
@@ -68,18 +71,21 @@ def generate_response_with_gpt2(query, similar_reviews, max_context_length=256):
 # Process the user query
 if st.button('Search Similar Reviews'):
     if query:
-        # Retrieve similar reviews based on the query, considering only those with embeddings
+        # Debug: Show that the query is being processed
+        st.write(f"Processing query: {query}")
+
+        # Retrieve similar reviews based on the query
         similar_reviews = find_similar_reviews(query)
 
         # Generate a response using GPT-2 model based on similar reviews
         response = generate_response_with_gpt2(query, similar_reviews)
-
+        
         # Display the generated response
         st.write("### Answer:")
         st.write(response)
 
         # Display the top similar reviews
-        st.write("### Top Similar Reviews (with embeddings):")
+        st.write("### Top Similar Reviews:")
         for review_id, similarity in similar_reviews:
             st.write(f"Review ID: {review_id}, Similarity: {similarity:.4f}")
     else:
