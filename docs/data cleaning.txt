@@ -1,0 +1,118 @@
+import pandas as pd
+
+# Load the datasets
+calendar_df = pd.read_csv("calendar.csv")
+listings_df = pd.read_csv("listings.csv")
+reviews_df = pd.read_csv("reviews.csv")
+
+# Calendar Data Cleaning
+# ------------------------
+
+# 1. Handle Missing Values:
+# Ensure numeric conversion for problematic columns
+for col in ["price", "adjusted_price", "minimum_nights"]:
+    if col in calendar_df.columns:
+        # Remove non-numeric characters (e.g., '$', ',') if applicable
+        calendar_df[col] = calendar_df[col].astype(str).str.replace(r'[^0-9.]', '', regex=True)
+
+        # Convert to float
+        calendar_df[col] = pd.to_numeric(calendar_df[col], errors='coerce')
+
+# Handle missing values after conversion by filling NaNs with the mean
+calendar_df.fillna({
+    "price": calendar_df["price"].mean(),
+    "adjusted_price": calendar_df["adjusted_price"].mean(),
+    "minimum_nights": calendar_df["minimum_nights"].median(),
+    "maximum_nights": calendar_df["maximum_nights"].median()
+}, inplace=True)
+
+# 2. Convert Price Columns to Numeric:
+# Clean 'price' and 'adjusted_price' columns first, remove non-numeric characters
+for col in ["price", "adjusted_price"]:
+    if col in calendar_df.columns:
+        # Ensure "price" and "adjusted_price" columns are strings before using string operations
+        calendar_df[col] = calendar_df[col].apply(lambda x: str(x) if pd.notnull(x) else "0")
+
+# Remove '$' and ',' symbols and convert to numeric
+calendar_df["price"] = pd.to_numeric(calendar_df["price"].str.replace("[$,]", "", regex=True), errors="coerce")
+calendar_df["adjusted_price"] = pd.to_numeric(calendar_df["adjusted_price"].str.replace("[$,]", "", regex=True), errors="coerce")
+
+# Calculate adjusted_price if it's still NaN
+calendar_df["adjusted_price"].fillna(calendar_df["price"] * 1.1, inplace=True)
+
+# Handle missing values by filling NaNs with the mean of each column
+calendar_df.fillna({
+    "price": calendar_df["price"].mean(),
+    "adjusted_price": calendar_df["adjusted_price"].mean()
+}, inplace=True)
+
+# Check the cleaned result
+print("Cleaned calendar data (all columns):")
+print(calendar_df)  # Print all columns for the calendar dataframe
+print("\nRemaining NaN values in calendar data:")
+print(calendar_df.isna().sum())  # Check if there are any NaN values in the calendar dataframe
+
+# 3. Convert Date Column to Datetime:
+calendar_df["date"] = pd.to_datetime(calendar_df["date"])
+
+# Listings Data Cleaning
+# ------------------------
+
+# 1. Handle Missing Values:
+# Fill missing review scores and other columns in listings_df
+listings_df.fillna({
+    "host_response_rate": listings_df["host_response_rate"].mode()[0],  # Use mode for categorical values
+    "host_acceptance_rate": listings_df["host_acceptance_rate"].mode()[0],
+    "bedrooms": listings_df["bedrooms"].median(),  # Use median for numeric values
+    "beds": listings_df["beds"].median(),
+    "bathrooms_text": listings_df["bathrooms_text"].mode()[0],  # Mode for categorical text
+    "review_scores_rating": listings_df["review_scores_rating"].mean(),  # Use mean for review scores
+    "review_scores_accuracy": listings_df["review_scores_accuracy"].mean(),
+    "review_scores_cleanliness": listings_df["review_scores_cleanliness"].mean(),
+    "review_scores_checkin": listings_df["review_scores_checkin"].mean(),
+    "review_scores_communication": listings_df["review_scores_communication"].mean(),
+    "review_scores_location": listings_df["review_scores_location"].mean(),
+    "review_scores_value": listings_df["review_scores_value"].mean(),
+    "license": "Not Provided",  # If the license is missing, you can provide a default text
+    "instant_bookable": "f",  # Default 'f' for false (assuming this is a categorical variable)
+    "calculated_host_listings_count": listings_df["calculated_host_listings_count"].median(),  # Fill with median
+    "calculated_host_listings_count_entire_homes": listings_df["calculated_host_listings_count_entire_homes"].median(),
+    "calculated_host_listings_count_private_rooms": listings_df["calculated_host_listings_count_private_rooms"].median(),
+    "calculated_host_listings_count_shared_rooms": listings_df["calculated_host_listings_count_shared_rooms"].median(),
+    "reviews_per_month": listings_df["reviews_per_month"].mean(),  # Fill with mean
+}, inplace=True)
+
+# 2. Convert Price Columns to Numeric:
+listings_df["price"] = pd.to_numeric(listings_df["price"].str.replace("[$,]", "", regex=True))
+
+# Check the cleaned result for listings
+print("\nCleaned listings data (all columns):")
+print(listings_df)  # Print all columns for the listings dataframe
+print("\nRemaining NaN values in listings data:")
+print(listings_df.isna().sum())  # Check if there are any NaN values in the listings dataframe
+
+# Reviews Data Cleaning
+# ------------------------
+
+# 1. Handle Missing Values:
+reviews_df.fillna({"comments": "No comment provided"}, inplace=True)
+
+# 2. Convert Date Columns to Datetime:
+reviews_df["date"] = pd.to_datetime(reviews_df["date"])
+
+# Check the cleaned result for reviews
+print("\nCleaned reviews data (all columns):")
+print(reviews_df)  # Print all columns for the reviews dataframe
+print("\nRemaining NaN values in reviews data:")
+print(reviews_df.isna().sum())  # Check if there are any NaN values in the reviews dataframe
+
+# Save the cleaned datasets (optional)
+calendar_df.to_csv("cleaned_calendar.csv", index=False)
+listings_df.to_csv("cleaned_listings.csv", index=False)
+reviews_df.to_csv("cleaned_reviews.csv", index=False)
+
+# Optional: Print outputs to check if the files were saved correctly
+print("\nCleaned datasets saved as:")
+print("cleaned_calendar.csv")
+print("cleaned_listings.csv")
+print("cleaned_reviews.csv")
