@@ -1,0 +1,44 @@
+embedding:
+from tqdm import tqdm
+from sentence_transformers import SentenceTransformer
+from py2neo import Graph
+import pandas as pd
+import time
+
+# Connect to Neo4j
+graph = Graph("neo4j+s://32511ae0.databases.neo4j.io", auth=("neo4j", "HYKino3fm8r87dIde7v4FUZl0WPNHwCsXjzS6dlM4xI"))
+
+# Initialize the sentence transformer model
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Load the cleaned review dataset (assuming the file is available)
+reviews_df = pd.read_csv('cleaned_reviews.csv')
+
+# Start the timer
+start_time = time.time()
+
+# Generate embeddings for review comments and store them in Neo4j with progress bar
+for _, row in tqdm(reviews_df.iterrows(), total=len(reviews_df), desc="Generating Review Embeddings"):
+    review_text = row['comments']
+    
+    # Skip if the review text is NaN or empty
+    if pd.isna(review_text) or not review_text.strip():
+        continue
+    
+    # Check if the review already has an embedding in Neo4j
+    review_node = graph.nodes.match("Review", id=row['id']).first()
+    
+    if review_node and 'embedding' in review_node:
+        continue  # Skip this review if it already has an embedding
+    
+    # Generate the embedding vector
+    review_embedding = model.encode(review_text).tolist()  # Convert to list for storage in Neo4j
+    
+    # If the review node exists, store the embedding
+    if review_node:
+        review_node['embedding'] = review_embedding
+        graph.push(review_node)
+
+# Calculate elapsed time
+elapsed_time = time.time() - start_time
+print(f"Embedding generation completed in {elapsed_time:.2f} seconds.")
