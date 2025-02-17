@@ -8,7 +8,7 @@ import json
 # Neo4j connection details
 NEO4J_URI = 'neo4j+s://32511ae0.databases.neo4j.io'
 NEO4J_USERNAME = 'neo4j'
-NEO4J_PASSWORD = 'HYKino3fm8r87dIde7v4FUZl0WPNHwCsXjzS6dlM4xI'
+NEO4J_PASSWORD = 'xxxxxxx'# type your password!
 
 # Initialize Neo4j connection
 graph = Graph(NEO4J_URI, auth=(NEO4J_USERNAME, NEO4J_PASSWORD))
