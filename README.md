@@ -1,4 +1,4 @@
-## Airbnb Market Analysis Chatbot using Graph RAG & Generative AI
+# Airbnb Market Analysis Chatbot using Graph RAG & Generative AI
 
 ## Project Overview
 This project involves creating a Generative AI-powered chatbot that answers questions about the Albany Airbnb market using Graph RAG architecture.
