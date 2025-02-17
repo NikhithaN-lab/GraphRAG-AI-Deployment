@@ -1,0 +1,264 @@
+MATCH p=()-[:HAS_REVIEW]->() RETURN p LIMIT 25;
+
+MATCH (r:Review)
+WHERE r.embedding IS NOT NULL AND r.review_text IS NOT NULL
+RETURN r.id AS review_id, r.embedding AS embedding, r.review_text AS text
+LIMIT 1000;
+
+MATCH (r:Review)
+WHERE EXISTS(r.embedding) AND EXISTS(r.review_text)
+RETURN r.id AS review_id, r.embedding AS embedding, r.review_text AS text
+LIMIT 1000;
+
+MATCH (r:Review)
+RETURN r.id, r.embedding, r.comment
+LIMIT 5;
+
+MATCH (r:Review)
+WHERE r.embedding IS NOT NULL AND r.comment IS NOT NULL
+RETURN r.id, r.embedding, r.comment
+LIMIT 5;
+
+MATCH (r:Review)
+WHERE r.embedding IS NOT NULL AND r.comment IS NOT NULL
+RETURN r.id, r.embedding, r.comment
+LIMIT 5;
+
+MATCH (r:Review)
+WHERE r.embedding IS NOT NULL AND r.review_text IS NOT NULL
+RETURN r.id, r.embedding, r.review_text
+LIMIT 5;
+
+MATCH (r:Review) 
+WHERE r.embedding IS NOT NULL AND r.comment IS NOT NULL 
+RETURN r.id, r.embedding, r.comment 
+LIMIT 1000;
+
+MATCH (r:Review) 
+RETURN DISTINCT keys(r) AS properties 
+LIMIT 10;
+
+MATCH (r:Review) 
+WHERE r.embedding IS NOT NULL AND r.review_text IS NOT NULL 
+RETURN r.id, r.embedding, r.review_text 
+LIMIT 1000;
+
+WHERE r.embedding IS NOT NULL AND r.review_text IS NOT NULL;
+
+MATCH (r:Review)
+WHERE r.embedding IS NULL
+RETURN count(r) AS unembedded_count;
+
+MATCH (r:Review)
+WHERE r.embedding IS NOT NULL
+RETURN count(r) AS embedded_count;
+
+MATCH (n) 
+WHERE n.embedding IS NOT NULL
+RETURN DISTINCT "node" as entity, n.embedding AS embedding LIMIT 25
+UNION ALL 
+MATCH ()-[r]-() 
+WHERE r.embedding IS NOT NULL
+RETURN DISTINCT "relationship" AS entity, r.embedding AS embedding LIMIT 25;
+
+MATCH (r:Review) WHERE r.embedding IS NOT NULL RETURN r.id, r.embedding LIMIT 10;
+
+MATCH (r:Review) 
+WHERE r.embedding IS NOT NULL AND r.embedding <> [] 
+RETURN r.id, r.embedding 
+LIMIT 1000;
+
+query_result = graph.run("MATCH (r:Review) WHERE r.embedding IS NOT NULL AND r.embedding <> [] RETURN r.id, r.embedding LIMIT 1000");
+
+MATCH (r:Review) 
+WHERE r.embedding IS NOT NULL 
+RETURN r.id, r.embedding 
+LIMIT 10;
+
+MATCH (r:Review)
+WHERE EXISTS(r.embedding)
+RETURN r.id, r.embedding LIMIT 10;
+
+MATCH (n) 
+WHERE n.embedding IS NOT NULL
+RETURN DISTINCT "node" as entity, n.embedding AS embedding LIMIT 25
+UNION ALL 
+MATCH ()-[r]-() 
+WHERE r.embedding IS NOT NULL
+RETURN DISTINCT "relationship" AS entity, r.embedding AS embedding LIMIT 25;
+
+MATCH (r:Review)
+WHERE r.embedding IS NOT NULL AND NOT r.embedding = 'NaN' AND NOT ALL(x IN r.embedding WHERE x = 'NaN')
+RETURN COUNT(r) AS valid_embeddings_count;
+
+MATCH (r:Review)
+WHERE r.embedding IS NULL OR r.embedding = 'NaN' OR ALL(x IN r.embedding WHERE x = 'NaN')
+RETURN COUNT(r) AS missing_embeddings_count;
+
+MATCH (r:Review)
+WHERE r.embedding IS NULL
+RETURN r.id
+LIMIT 10;
+
+MATCH (r:Review)
+WHERE NOT EXISTS(r.embedding)
+RETURN r.id
+LIMIT 10;
+
+MATCH (r:Review)
+RETURN r.id, r.embedding
+LIMIT 10;
+
+MATCH (n) 
+WHERE n.embedding IS NOT NULL
+RETURN DISTINCT "node" as entity, n.embedding AS embedding LIMIT 25
+UNION ALL 
+MATCH ()-[r]-() 
+WHERE r.embedding IS NOT NULL
+RETURN DISTINCT "relationship" AS entity, r.embedding AS embedding LIMIT 25;
+
+MATCH (r:Review) WHERE r.embedding IS NULL RETURN r.id LIMIT 10;
+
+MATCH (r:Review) WHERE NOT EXISTS(r.embedding) RETURN r.id LIMIT 10;
+
+MATCH (r:Review) WHERE EXISTS(r.embedding) RETURN count(r);
+
+MATCH (n) 
+WHERE n.embedding IS NOT NULL
+RETURN DISTINCT "node" as entity, n.embedding AS embedding LIMIT 25
+UNION ALL 
+MATCH ()-[r]-() 
+WHERE r.embedding IS NOT NULL
+RETURN DISTINCT "relationship" AS entity, r.embedding AS embedding LIMIT 25;
+
+MATCH (r:Review)
+WHERE r.embedding IS NOT NULL
+RETURN r.id, r.embedding LIMIT 10;
+
+MATCH (r:Review)
+WHERE EXISTS(r.embedding)
+RETURN r.id, r.embedding LIMIT 10;
+
+MATCH (r:Review)
+WHERE r.embedding IS NOT NULL
+RETURN COUNT(r) AS embeddings_count;
+
+MATCH (r:Review)
+WHERE EXISTS(r.embedding)
+RETURN COUNT(r) AS embeddings_count;
+
+MATCH (r:Review)
+RETURN r.id, r.embedding LIMIT 10;
+
+MATCH p=()-[:HAS_REVIEW]->() RETURN p LIMIT 25;
+
+MATCH (l:Listing)-[r:HAS_REVIEW]->(rev:Review)
+RETURN COUNT(r) AS total_relationships;
+
+MATCH (l:Listing)-[r:HAS_REVIEW]->(rev:Review)
+RETURN l.id, rev.listing_id LIMIT 10;
+
+MATCH (l:Listing)
+RETURN DISTINCT labels(l), l.id LIMIT 10;
+MATCH (r:Review)
+RETURN DISTINCT labels(r), r.listing_id LIMIT 10;
+MATCH (l:Listing)
+WHERE l.id IS NULL OR l.id = ''
+RETURN COUNT(l) AS empty_ids;
+MATCH (r:Review)
+WHERE r.listing_id IS NULL OR r.listing_id = ''
+RETURN COUNT(r) AS empty_listing_ids;
+MATCH (l:Listing), (r:Review)
+WHERE toString(l.id) = toString(r.listing_id)
+CREATE (l)-[:HAS_REVIEW]->(r);
+MATCH (l:Listing), (r:Review)
+WHERE toString(l.id) = toString(r.listing_id)
+RETURN l.id, r.listing_id LIMIT 10;
+MATCH (l:Listing), (r:Review)
+WHERE toString(l.id) = toString(r.listing_id)
+MERGE (l)-[:HAS_REVIEW]->(r);
+
+MATCH (l:Listing), (r:Review)
+WHERE l.id = r.listing_id
+CREATE (l)-[:HAS_REVIEW]->(r);
+
+MATCH (r:Review)
+WHERE r.listing_id IN ['2992450', '3820211', '5651579', '6623339'] // Add valid IDs here
+RETURN DISTINCT r.listing_id LIMIT 10;
+
+MATCH (l:Listing)
+RETURN DISTINCT l.id LIMIT 10;
+
+MATCH (r:Review)
+RETURN DISTINCT r.listing_id LIMIT 10;
+
+MATCH (l:Listing), (r:Review)
+WHERE l.id = r.listing_id
+CREATE (l)-[:HAS_REVIEW]->(r);
+
+MATCH (r:Review)
+WHERE r.listing_id CONTAINS "<br/>"
+SET r.listing_id = trim(replace(r.listing_id, "<br/>", ""))
+RETURN COUNT(r) AS cleaned_reviews;
+
+MATCH (r:Review)
+SET r.listing_id = trim(replace(r.listing_id, "<br/>", "")) // Remove <br/> tags
+WHERE r.listing_id CONTAINS "<br/>"
+RETURN COUNT(r) AS cleaned_reviews;
+
+MATCH (r:Review)
+RETURN DISTINCT r.listing_id LIMIT 10;
+
+MATCH (l:Listing)
+RETURN COUNT(l);
+
+MATCH (l:Listing)
+WHERE l.id IN ["2992450", "3820211"]
+RETURN l.id;
+
+MATCH (r:Review)
+WHERE NOT EXISTS((r)-[:HAS_REVIEW]->(:Listing {id: r.listing_id}))
+RETURN r.listing_id LIMIT 10;
+
+MATCH (r:Review)
+WHERE NOT EXISTS((r)-[:HAS_REVIEW]->(:Listing {id: r.listing_id}))
+RETURN COUNT(r) AS unmatched_reviews;
+
+MATCH (r:Review)
+WHERE r.listing_id IS NULL OR r.listing_id = ''
+RETURN COUNT(r) AS empty_listing_ids;
+
+MATCH (r:Review)
+WHERE r.listing_id IS NULL OR r.listing_id = ''
+RETURN COUNT(r) AS empty_listing_ids;
+
+MATCH (r:Review) RETURN DISTINCT r.listing_id LIMIT 10;
+MATCH (l:Listing) RETURN DISTINCT l.id LIMIT 10;
+
+MATCH (l:Listing) WHERE l.id IS NULL RETURN COUNT(l);
+
+MATCH (r:Review) WHERE r.listing_id IS NULL RETURN COUNT(r);
+
+MATCH (l:Listing), (r:Review)
+WHERE r.listing_id IS NOT NULL AND r.listing_id = l.id
+CREATE (l)-[:HAS_REVIEW]->(r);
+
+MATCH (:Listing)-[r:HAS_REVIEW]->(:Review)
+RETURN COUNT(r);
+
+MATCH (l:Listing), (r:Review)
+WHERE r.listing_id = l.id
+CREATE (l)-[:HAS_REVIEW]->(r);
+
+MATCH (n:Review) RETURN n LIMIT 25;
+
+MATCH (n:Listing) RETURN n LIMIT 25;
+
+MATCH (n:Listing) RETURN COUNT(n);
+MATCH (n:Review) RETURN COUNT(n);
+
+MATCH (n:Listing) RETURN COUNT(n);
+MATCH (n:Review) RETURN COUNT(n);
+
+MATCH (n:Listing) RETURN COUNT(n);
+MATCH (n:Review) RETURN COUNT(n);
