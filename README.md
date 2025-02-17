@@ -19,6 +19,7 @@ The system leverages a Streamlit interface for user interaction and utilizes pre
 -  Scalability: Working on scaling the solution for larger datasets and real-time use cases.
 
 ## Next Steps
+-  Extend to Edge Deployment: Explore deployment using NVIDIA/Qualcomm hardware accelerators like TensorRT and SNPE for improved inference performance.
 -  Enhance Query Efficiency: Implement optimizations for faster retrieval in larger datasets.
 -  Extend to Other Markets: Expand the system to support Airbnb data from different cities.
 
