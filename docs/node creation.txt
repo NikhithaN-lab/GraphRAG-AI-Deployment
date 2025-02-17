@@ -1,0 +1,54 @@
+# Install the necessary libraries
+!pip install py2neo transformers sentence-transformers tqdm
+
+# Import necessary libraries
+from py2neo import Graph, Node, Relationship
+import pandas as pd
+from sentence_transformers import SentenceTransformer
+import numpy as np
+from transformers import pipeline
+from tqdm import tqdm  # Import tqdm for progress bars
+
+# Connect to Neo4j (Replace with your Neo4j Aura or local Neo4j instance details)
+from py2neo import Graph
+
+# Replace placeholders with your actual values:
+graph = Graph("neo4j+s://32511ae0.databases.neo4j.io", auth=("neo4j", "HYKino3fm8r87dIde7v4FUZl0WPNHwCsXjzS6dlM4xI"))
+
+# Load the cleaned datasets
+listings_df = pd.read_csv('cleaned_listings.csv')
+reviews_df = pd.read_csv('cleaned_reviews.csv')
+calendar_df = pd.read_csv('cleaned_calendar.csv')
+
+# Create Nodes in Neo4j for Listings (with progress bar)
+for _, row in tqdm(listings_df.iterrows(), total=len(listings_df), desc="Creating Listing Nodes"):
+    listing_node = Node("Listing", id=row['id'], price=row['price'], room_type=row['room_type'], location=row['neighbourhood_cleansed'])
+    graph.create(listing_node)
+
+# Create Nodes for Reviews (with progress bar)
+for _, row in tqdm(reviews_df.iterrows(), total=len(reviews_df), desc="Creating Review Nodes"):
+    review_node = Node("Review", id=row['id'], listing_id=row['listing_id'], comment=row['comments'])
+    graph.create(review_node)
+
+# Create Relationships between Listings and Reviews (with progress bar)
+for _, row in tqdm(reviews_df.iterrows(), total=len(reviews_df), desc="Creating Relationships"):
+    listing_node = graph.nodes.match("Listing", id=row['listing_id']).first()
+    review_node = graph.nodes.match("Review", id=row['id']).first()
+    if listing_node and review_node:
+        rel = Relationship(listing_node, "HAS_REVIEW", review_node)
+        graph.create(rel)
+
+# Initialize the sentence transformer model for embedding text
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# Generate embeddings for review comments and store in Neo4j (with progress bar)
+for _, row in tqdm(reviews_df.iterrows(), total=len(reviews_df), desc="Generating Review Embeddings"):
+    review_text = row['comments']
+    # Generate the embedding vector
+    review_embedding = model.encode(review_text).tolist()  # Convert to list for storage in Neo4j
+    
+    review_node = graph.nodes.match("Review", id=row['id']).first()
+    if review_node:
+        review_node['embedding'] = review_embedding
+        graph.push(review_node)
+
